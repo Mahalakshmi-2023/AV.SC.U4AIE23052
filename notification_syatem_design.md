@@ -1967,3 +1967,114 @@ This architecture ensures:
 - consistent notification delivery
 
 even under extremely high traffic conditions.
+
+---
+
+# Stage 6 — Priority Inbox System
+
+# Objective
+
+The system should display the top `n` most important unread notifications.
+
+Priority is determined using:
+
+1. Notification type weight
+2. Recency of notification
+
+---
+
+# Priority Rules
+
+| Type | Weight |
+|---|---|
+| Placement | 3 |
+| Result | 2 |
+| Event | 1 |
+
+Placement notifications have the highest priority.
+
+More recent notifications are ranked higher.
+
+---
+
+# Scoring Formula
+
+```txt
+Final Score =
+(Type Weight × Large Constant) + Timestamp
+```
+
+This ensures:
+
+- Placement notifications rank above Result and Event
+- Recent notifications rank higher within same type
+
+---
+
+# Approach Used
+
+The solution fetches notifications from the API and maintains only the top 10 notifications efficiently using a Min Heap.
+
+Instead of sorting all notifications repeatedly, the heap keeps only the most important notifications.
+
+---
+
+# Why Min Heap?
+
+A Min Heap is efficient because:
+
+- heap size remains fixed at 10
+- insertion/removal takes O(log 10)
+- memory usage remains small
+- scalable for large streams
+
+---
+
+# Time Complexity
+
+```txt
+O(N log K)
+```
+
+Where:
+
+- N = total notifications
+- K = top notifications (10)
+
+This is significantly better than sorting all notifications repeatedly.
+
+---
+
+# Real-Time Notification Handling
+
+As new notifications arrive:
+
+1. Calculate priority score
+2. Compare against heap minimum
+3. Replace lower-priority notification if necessary
+
+This maintains the top 10 efficiently in real time.
+
+---
+
+# Technologies Used
+
+| Component | Technology |
+|---|---|
+| Language | JavaScript |
+| Runtime | Node.js |
+| API Calls | Axios |
+| Data Structure | Min Heap |
+
+---
+
+# Output
+
+The implementation successfully:
+
+- fetches notifications from API
+- calculates priority
+- maintains top 10 efficiently
+- displays sorted priority notifications
+
+Screenshots of output have been added to the repository.
