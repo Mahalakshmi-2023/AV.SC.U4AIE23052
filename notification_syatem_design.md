@@ -833,3 +833,305 @@ Redis can be used for:
 # Conclusion
 
 MongoDB provides a scalable and flexible solution for handling high-volume notification systems. With proper indexing, pagination, caching, sharding, and real-time communication architecture, the system can efficiently support millions of notifications while maintaining high performance and reliability.
+
+---
+
+# Stage 3 - SQL Query Optimization & Performance Analysis
+
+# Existing Query
+
+```sql
+SELECT * FROM notifications
+WHERE studentID = 1042 AND isRead = false
+ORDER BY createdAt ASC;
+```
+
+---
+
+# Is This Query Accurate?
+
+Yes, the query is logically correct because it fetches unread notifications for a specific student and sorts them by creation time.
+
+However, the query is not optimized for large-scale datasets.
+
+The database currently contains:
+
+- 50,000 students
+- 5,000,000 notifications
+
+At this scale, query optimization becomes extremely important.
+
+---
+
+# Why Is This Query Slow?
+
+Several factors contribute to the slow performance.
+
+---
+
+# 1. Full Table Scan
+
+If proper indexes are not present, the database engine scans millions of rows to find matching records.
+
+This increases query execution time significantly.
+
+---
+
+# 2. Sorting Overhead
+
+The query uses:
+
+```sql
+ORDER BY createdAt ASC
+```
+
+Sorting large datasets without an optimized index is computationally expensive.
+
+---
+
+# 3. SELECT *
+
+Using:
+
+```sql
+SELECT *
+```
+
+retrieves all columns unnecessarily.
+
+This increases:
+
+- disk I/O
+- memory usage
+- network transfer cost
+
+---
+
+# 4. Large Dataset Size
+
+The table contains 5 million records.
+
+Without indexing and pagination, response time degrades rapidly as data grows.
+
+---
+
+# Optimized Query
+
+A more optimized version is:
+
+```sql
+SELECT id, title, message, createdAt
+FROM notifications
+WHERE studentID = 1042
+AND isRead = false
+ORDER BY createdAt DESC
+LIMIT 20;
+```
+
+---
+
+# Improvements Made
+
+| Optimization | Benefit |
+|---|---|
+| Removed SELECT * | Fetches only required columns |
+| Added LIMIT | Reduces result size |
+| DESC ordering | Fetches latest notifications first |
+| Smaller payload | Improves response time |
+
+---
+
+# Recommended Index
+
+The best optimization is a composite index.
+
+## Recommended Composite Index
+
+```sql
+CREATE INDEX idx_notifications_student_read_created
+ON notifications(studentID, isRead, createdAt DESC);
+```
+
+---
+
+# Why Composite Index Works Better
+
+The query filters by:
+
+- studentID
+- isRead
+
+and sorts by:
+
+- createdAt
+
+The composite index allows the database to:
+
+- quickly locate matching rows
+- avoid full table scans
+- avoid expensive sorting operations
+
+---
+
+# Computational Cost
+
+## Without Index
+
+Approximate complexity:
+
+```txt
+O(N)
+```
+
+The database scans millions of rows.
+
+---
+
+# With Composite Index
+
+Approximate complexity:
+
+```txt
+O(log N)
+```
+
+Index traversal becomes significantly faster.
+
+---
+
+# Should We Add Indexes on Every Column?
+
+No, adding indexes on every column is not an effective strategy.
+
+---
+
+# Problems With Excessive Indexing
+
+| Problem | Explanation |
+|---|---|
+| Increased storage usage | Each index consumes disk space |
+| Slower INSERT operations | All indexes must be updated |
+| Slower UPDATE operations | Index maintenance overhead |
+| Slower DELETE operations | Index references must be removed |
+| Poor optimizer decisions | Too many indexes confuse query planner |
+
+---
+
+# Best Practice for Indexing
+
+Indexes should only be created on:
+
+- frequently filtered columns
+- JOIN columns
+- sorting columns
+- high-frequency search fields
+
+Indexes must be designed based on query patterns.
+
+---
+
+# Query to Find Students Who Received Placement Notifications in Last 7 Days
+
+## Optimized SQL Query
+
+```sql
+SELECT DISTINCT studentID
+FROM notifications
+WHERE notificationType = 'Placement'
+AND createdAt >= NOW() - INTERVAL 7 DAY;
+```
+
+---
+
+# Why DISTINCT Is Used
+
+A student may receive multiple placement notifications.
+
+`DISTINCT` ensures unique student IDs are returned.
+
+---
+
+# Recommended Index for Placement Query
+
+```sql
+CREATE INDEX idx_notification_type_created
+ON notifications(notificationType, createdAt);
+```
+
+---
+
+# Pagination Recommendation
+
+Fetching all notifications at once is inefficient.
+
+Pagination should always be implemented.
+
+## Example
+
+```sql
+SELECT id, title, message, createdAt
+FROM notifications
+WHERE studentID = 1042
+AND isRead = false
+ORDER BY createdAt DESC
+LIMIT 20 OFFSET 0;
+```
+
+---
+
+# Partitioning Strategy
+
+As notification volume increases further, table partitioning can improve performance.
+
+## Example Partitioning
+
+Partition by:
+
+- createdAt (monthly partitions)
+- notificationType
+- studentID ranges
+
+---
+
+# Caching Strategy
+
+Frequently accessed unread notification counts can be cached using Redis.
+
+This reduces repeated database hits.
+
+---
+
+# Database Scaling Recommendations
+
+## Read Replicas
+
+Use read replicas for heavy read traffic.
+
+---
+
+## Sharding
+
+Distribute notifications across multiple database servers.
+
+---
+
+## Archiving
+
+Move old notifications to archive tables after a fixed duration.
+
+---
+
+# Final Recommendation
+
+The primary issue is lack of proper indexing and inefficient query design.
+
+The best solution includes:
+
+- composite indexing
+- pagination
+- limited column selection
+- caching
+- partitioning
+- query optimization
+
+These techniques significantly improve scalability and reduce database load in high-volume notification systems.
