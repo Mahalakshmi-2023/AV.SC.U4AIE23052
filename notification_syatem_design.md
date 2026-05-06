@@ -1,4 +1,4 @@
-# Stage 1 — Notification System Design
+# Stage 1 - Notification System Design
 
 This document defines the REST API contract and system design for a notification platform that allows users to receive, manage, and interact with notifications in real time.
 
@@ -471,3 +471,365 @@ WebSocket / Socket.IO
 # Conclusion
 
 The notification system is designed with scalable REST APIs, structured JSON contracts, predictable endpoints, and real-time communication support. The architecture ensures maintainability, extensibility, and efficient notification delivery for modern applications.
+
+---
+
+# Stage 2 - Database Design & Storage Architecture
+
+# Database Choice
+
+## Selected Database
+
+```txt
+MongoDB (NoSQL Database)
+```
+
+---
+
+# Why MongoDB?
+
+MongoDB is selected because notification systems generate large volumes of semi-structured and real-time data. MongoDB provides:
+
+- High write performance
+- Flexible schema design
+- Horizontal scalability
+- Fast querying for unread notifications
+- Efficient handling of real-time notification streams
+- Easy integration with Node.js applications
+
+Since notification payloads may evolve over time with additional metadata, a NoSQL database is more suitable than a rigid relational schema.
+
+---
+
+# Database Collection Design
+
+# notifications Collection
+
+## Schema Structure
+
+```json
+{
+  "_id": "ObjectId",
+  "userId": "user_001",
+  "title": "New Message",
+  "message": "You received a new message",
+  "type": "message",
+  "priority": "high",
+  "read": false,
+  "createdAt": "2026-05-06T10:00:00Z",
+  "updatedAt": "2026-05-06T10:00:00Z"
+}
+```
+
+---
+
+# Field Descriptions
+
+| Field | Type | Description |
+|------|------|-------------|
+| _id | ObjectId | Unique notification ID |
+| userId | string | User identifier |
+| title | string | Notification title |
+| message | string | Notification content |
+| type | string | Notification category |
+| priority | string | Priority level |
+| read | boolean | Read/unread status |
+| createdAt | timestamp | Creation timestamp |
+| updatedAt | timestamp | Last update timestamp |
+
+---
+
+# Indexing Strategy
+
+To improve performance, the following indexes are recommended:
+
+```js
+db.notifications.createIndex({ userId: 1 })
+
+db.notifications.createIndex({ read: 1 })
+
+db.notifications.createIndex({ createdAt: -1 })
+
+db.notifications.createIndex({
+  userId: 1,
+  read: 1
+})
+```
+
+---
+
+# REST API Query Mapping
+
+# 1. Create Notification
+
+## MongoDB Query
+
+```js
+db.notifications.insertOne({
+  userId: "user_001",
+  title: "Server Maintenance",
+  message: "Server maintenance tonight",
+  type: "system",
+  priority: "high",
+  read: false,
+  createdAt: new Date(),
+  updatedAt: new Date()
+})
+```
+
+---
+
+# 2. Get All Notifications
+
+## MongoDB Query
+
+```js
+db.notifications.find({
+  userId: "user_001"
+})
+.sort({ createdAt: -1 })
+.limit(10)
+```
+
+---
+
+# 3. Get Unread Notifications
+
+## MongoDB Query
+
+```js
+db.notifications.find({
+  userId: "user_001",
+  read: false
+})
+```
+
+---
+
+# 4. Get Notification By ID
+
+## MongoDB Query
+
+```js
+db.notifications.findOne({
+  _id: ObjectId("6612ab34cd5678ef90123456")
+})
+```
+
+---
+
+# 5. Mark Notification as Read
+
+## MongoDB Query
+
+```js
+db.notifications.updateOne(
+  {
+    _id: ObjectId("6612ab34cd5678ef90123456")
+  },
+  {
+    $set: {
+      read: true,
+      updatedAt: new Date()
+    }
+  }
+)
+```
+
+---
+
+# 6. Mark All Notifications as Read
+
+## MongoDB Query
+
+```js
+db.notifications.updateMany(
+  {
+    userId: "user_001",
+    read: false
+  },
+  {
+    $set: {
+      read: true,
+      updatedAt: new Date()
+    }
+  }
+)
+```
+
+---
+
+# 7. Delete Notification
+
+## MongoDB Query
+
+```js
+db.notifications.deleteOne({
+  _id: ObjectId("6612ab34cd5678ef90123456")
+})
+```
+
+---
+
+# Scaling Challenges
+
+As notification volume increases, several challenges may arise.
+
+---
+
+# 1. Large Data Growth
+
+Millions of notifications can increase storage size rapidly.
+
+## Solution
+
+- Archive old notifications
+- Apply data retention policies
+- Use cloud-based scalable storage
+
+---
+
+# 2. Slow Query Performance
+
+Unread notification queries may become slow.
+
+## Solution
+
+- Proper indexing
+- Pagination
+- Query optimization
+
+---
+
+# 3. High Concurrent Traffic
+
+Many users receiving notifications simultaneously may overload servers.
+
+## Solution
+
+- Load balancing
+- Distributed servers
+- Queue-based processing using Kafka or RabbitMQ
+
+---
+
+# 4. Real-Time Delivery Bottlenecks
+
+Large WebSocket connections may consume server resources.
+
+## Solution
+
+- WebSocket clustering
+- Redis Pub/Sub
+- Scalable event-driven architecture
+
+---
+
+# 5. Database Bottlenecks
+
+Single database instances may become overloaded.
+
+## Solution
+
+- Database sharding
+- Horizontal scaling
+- Read replicas
+
+---
+
+# Pagination Strategy
+
+Pagination prevents excessive data transfer.
+
+## Example API
+
+```http
+GET /notifications?page=1&limit=10
+```
+
+---
+
+# Example Backend Logic
+
+```js
+const page = 1;
+const limit = 10;
+const skip = (page - 1) * limit;
+
+db.notifications.find()
+.sort({ createdAt: -1 })
+.skip(skip)
+.limit(limit);
+```
+
+---
+
+# Data Retention Policy
+
+Old notifications older than 90 days can be archived or deleted automatically.
+
+## Example TTL Index
+
+```js
+db.notifications.createIndex(
+  { createdAt: 1 },
+  { expireAfterSeconds: 7776000 }
+)
+```
+
+---
+
+# Security Considerations
+
+- User-specific access control
+- JWT authentication
+- Encrypted communication using HTTPS
+- Input validation and sanitization
+- Protection against NoSQL injection
+
+---
+
+# High-Level Architecture
+
+```txt
+Client Application
+        │
+        ▼
+API Gateway
+        │
+        ▼
+Notification Service
+        │
+ ┌───────────────┐
+ │ MongoDB       │
+ │ Redis Cache   │
+ │ WebSocket Hub │
+ └───────────────┘
+```
+
+---
+
+# Redis Usage
+
+Redis can be used for:
+
+- Caching unread notification counts
+- WebSocket session management
+- Fast temporary storage
+- Pub/Sub messaging
+
+---
+
+# Future Improvements
+
+- Notification analytics
+- AI-based notification prioritization
+- Multi-device synchronization
+- Push notification integration
+- Email and SMS integration
+
+---
+
+# Conclusion
+
+MongoDB provides a scalable and flexible solution for handling high-volume notification systems. With proper indexing, pagination, caching, sharding, and real-time communication architecture, the system can efficiently support millions of notifications while maintaining high performance and reliability.
